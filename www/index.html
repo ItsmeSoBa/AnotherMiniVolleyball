@@ -1,383 +1,495 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>VolleyballMINI</title>
 <style>
-  :root{ --bg:#0e0f13; --fg:#e8eef8; --card:#171b26; --muted:#9aa6c0; --accent:#7ab9ff; }
-  html, body { height:100%; margin:0; background:var(--bg); color:var(--fg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
-  #wrap { display:flex; flex-direction:column; height:100%; }
-  #topbar { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; gap:12px; }
-  #score { font-weight:900; letter-spacing:.6px; }
-  #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center; padding:8px 12px; }
-  canvas { background: radial-gradient(1300px 650px at 50% -240px, #242c3b 0%, #12151e 65%);
-    border-radius:16px; box-shadow:0 22px 60px rgba(0,0,0,.35); max-width:100%; height:auto; touch-action:none; }
-  #controls { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; padding:10px; }
-  .btn { user-select:none; -webkit-user-select:none; background:#1b2130; border:1px solid #2a3244;
-    border-radius:14px; padding:12px; text-align:center; font-weight:800; }
-  .btn:active { transform:translateY(1px); filter:brightness(1.05); }
-  #menuOverlay { position:fixed; inset:0; background:rgba(10,12,18,0.92);
-    display:flex; align-items:center; justify-content:center; }
-  .panel { background:var(--card); border:1px solid #2a3142; border-radius:18px; padding:22px;
-    width:min(520px, 92vw); box-shadow:0 20px 60px rgba(0,0,0,0.5); }
-  .title { font-size:26px; font-weight:900; margin:0 0 6px 0; }
-  .subtitle { margin:0 0 16px 0; color:var(--muted); }
-  .menu-btn { display:block; width:100%; margin:10px 0; padding:12px 14px; background:#24314a;
-    border:1px solid #364565; color:#d6e6ff; border-radius:12px; font-weight:800; text-align:center; }
-  .menu-btn:hover { filter:brightness(1.06); }
-  .pill { padding:3px 8px; border-radius:999px; background:#0e7bff22; color:#9fc5ff; font-size:12px; border:1px solid #0e7bff44; }
-  .legend { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; }
+  :root{ --bg:#0d0f14; --fg:#eaf0fb; --muted:#9fb0cc; --accent:#7ab9ff; --accent2:#ff8aa5; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  #wrap{display:flex;flex-direction:column;height:100%}
+  #topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:10px}
+  #score{font-weight:900;letter-spacing:.6px;font-size:18px}
+  #legend{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
+  .pill{padding:3px 8px;border-radius:999px;background:#0e7bff22;color:#a7cbff;border:1px solid #0e7bff44}
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;padding:8px 12px}
+  canvas{border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.4);touch-action:none;max-width:100%;height:auto}
+  #controls{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;padding:12px}
+  .btn{user-select:none;-webkit-user-select:none;background:#182132;border:1px solid #2a3955;border-radius:14px;padding:14px;text-align:center;font-weight:800;font-size:16px}
+  .btn:active{transform:translateY(1px);filter:brightness(1.05)}
+  #menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,12,18,.92)}
+  .panel{background:#151a26;border:1px solid #2b3346;border-radius:18px;padding:22px;width:min(560px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  .title{font-size:28px;font-weight:900;margin:0 0 8px}
+  .subtitle{margin:0 0 16px;color:var(--muted)}
+  .menu-btn{display:block;width:100%;margin:10px 0;padding:12px 14px;background:#23324b;border:1px solid #354664;color:#d6e6ff;border-radius:12px;font-weight:800;text-align:center}
+  .menu-btn:hover{filter:brightness(1.06)}
 </style>
 </head>
 <body>
   <div id="wrap">
     <div id="topbar">
-      <div class="legend">
+      <div id="legend">
         <span class="pill">Move: A/D or ◀/▶</span>
         <span class="pill">Jump: W or ▲</span>
-        <span class="pill">Hit: SPACE (ground=set, air=spike)</span>
+        <span class="pill">Hit: SPACE (Ground = Set, Air = Spike)</span>
       </div>
       <div id="score">0 : 0</div>
     </div>
-    <div id="canvasWrap"><canvas id="game" width="1280" height="720"></canvas></div>
+    <div id="stage"><canvas id="cv"></canvas></div>
     <div id="controls">
-      <div class="btn" id="btnLeft">◀</div>
-      <div class="btn" id="btnRight">▶</div>
-      <div class="btn" id="btnJump">Jump</div>
-      <div class="btn" id="btnHit">Hit</div>
+      <div class="btn" id="bLeft">◀</div>
+      <div class="btn" id="bRight">▶</div>
+      <div class="btn" id="bJump">Jump</div>
+      <div class="btn" id="bHit">Hit</div>
     </div>
   </div>
 
-  <div id="menuOverlay">
+  <div id="menu">
     <div class="panel">
       <div class="title">VolleyballMINI</div>
-      <p class="subtitle">Physics-tuned 1v1 volleyball. Sets to the sweet spot; spikes go down.</p>
-      <button class="menu-btn" id="start1v1">Start 1v1</button>
-      <button class="menu-btn" id="restartBtn">Quick Restart</button>
-      <div style="margin-top:12px; font-size:12px; opacity:.85;">Tip: This single page builds to APK via Cordova.</div>
+      <p class="subtitle">Arcade-tuned physics. Sets to the sweet spot. Spikes drive down. 1v1 vs. imperfect AI.</p>
+      <button class="menu-btn" id="start">Start 1v1</button>
+      <button class="menu-btn" id="restart">Quick Restart</button>
+      <div style="margin-top:12px;font-size:12px;opacity:.85">Tip: This single page is built to APK via your Cordova workflow.</div>
     </div>
   </div>
 
 <script>
-(()=>{
-/* ========= Canvas & Layout ========= */
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const baseW=1280, baseH=720;
-function fitCanvas(){
-  const pad=12, wrap=document.getElementById('canvasWrap');
-  const maxW=wrap.clientWidth - pad*2, maxH=window.innerHeight - 220, target=baseW/baseH;
-  let w=maxW, h=w/target; if(h>maxH){ h=maxH; w=h*target; }
-  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+(() => {
+/* ===================== Canvas & Scaling (Crisp, Big) ===================== */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+// Virtual coordinates (physics runs here)
+const VW = 1600, VH = 900; // bigger than 1280x720 -> more room
+cv.width = VW; cv.height = VH;
+
+function fitCanvas() {
+  const wrap = document.getElementById('stage');
+  const pad = 16;
+  const maxW = wrap.clientWidth - pad*2;
+  const maxH = window.innerHeight - (document.getElementById('controls').offsetHeight + 110);
+  const target = VW / VH;
+  let w = maxW, h = w / target;
+  if (h > maxH) { h = maxH; w = h * target; }
+  const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap DPR for perf
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  // Render internally at full virtual res + DPR smoothing
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.imageSmoothingEnabled = true;
 }
 addEventListener('resize', fitCanvas); fitCanvas();
 
-/* ========= Constants (match Python feel) ========= */
-const W=canvas.width, H=canvas.height;
-const floorY=H-60;
-const courtMargin=30;
-const gravity=0.68;
-const wallBounce=0.86;
-const groundBounce=0.78;
-const netW=12, netH=165; // lowered net
-const net={x:W/2-netW/2, y:floorY-netH, w:netW, h:netH};
-const moveSpeed=8.0, jumpVel=-17.2; // slightly higher for reliable spikes
-const aiSpeed=6.7; // small buff over previous
-const maxTouches=3;
-const scoreTo=25;
+/* ===================== Constants (match Python feel) ===================== */
+const W = VW, H = VH;
+const FLOOR_Y = H - 90;
+const CM = 40; // court margin
+const GRAV = 0.68;
+const NET_W = 16, NET_H = 200; // lowered net
+const NET = { x: W/2 - NET_W/2, y: FLOOR_Y - NET_H, w: NET_W, h: NET_H };
+const WALL_BOUNCE = 0.86;
+const GROUND_BOUNCE = 0.78;
+const MAX_TOUCHES = 3;
+const SCORE_TO = 25;
 
-/* ========= Input ========= */
-const keys={left:false,right:false,jump:false,hit:false};
-const touch={left:false,right:false,jump:false,hit:false};
+// Player tuning
+const ACCEL = 1.35;
+const FRICTION = 0.88;
+const MAX_SPEED = 14.2;
+const JUMP_VEL = -22.5;   // higher for reliable spikes
+const COYOTE = 0.10;      // seconds allowed after leaving ground
+const HIT_BUFFER = 0.12;  // seconds to buffer Space
 
-addEventListener('keydown', e=>{
-  if(['a','A','ArrowLeft'].includes(e.key)) keys.left=true;
-  if(['d','D','ArrowRight'].includes(e.key)) keys.right=true;
-  if(['w','W','ArrowUp'].includes(e.key)) keys.jump=true;
-  if(e.code==='Space') keys.hit=true;
-});
-addEventListener('keyup', e=>{
-  if(['a','A','ArrowLeft'].includes(e.key)) keys.left=false;
-  if(['d','D','ArrowRight'].includes(e.key)) keys.right=false;
-  if(['w','W','ArrowUp'].includes(e.key)) keys.jump=false;
-  if(e.code==='Space') keys.hit=false;
-});
-function bindHold(id,prop){
-  const el=document.getElementById(id);
-  const set=v=>{touch[prop]=v; el.style.filter=v?'brightness(1.12)':'none';};
-  ['pointerdown','touchstart','mousedown'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();set(true);})); 
-  ['pointerup','pointercancel','touchend','mouseup','mouseleave'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();set(false);})); 
-}
-bindHold('btnLeft','left'); bindHold('btnRight','right'); bindHold('btnJump','jump'); bindHold('btnHit','hit');
-const combined=()=>({left:keys.left||touch.left,right:keys.right||touch.right,jump:keys.jump||touch.jump,hit:keys.hit||touch.hit});
+// AI tuning
+const AI_SPEED = 8.0;
+const AI_ANTICIPATION = 0.85;
 
-/* ========= Utilities ========= */
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function circleRectHit(cx,cy,cr, rx,ry,rw,rh){
-  const nx=clamp(cx, rx, rx+rw), ny=clamp(cy, ry, ry+rh);
-  const dx=cx-nx, dy=cy-ny; return (dx*dx+dy*dy) <= cr*cr;
-}
+/* ===================== Helpers ===================== */
+const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
+const now = () => performance.now()/1000;
+function rng(a,b){ return a + Math.random()*(b-a); }
+function choose(arr){ return arr[(Math.random()*arr.length)|0]; }
 
-/* ========= Particles (satisfying but subtle) ========= */
-const particles=[];
-function addRing(x,y,color='#ffd86b'){
-  particles.push({x,y,r:10,alpha:0.8,color,life:16});
-}
-function drawParticles(){
-  for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i];
-    p.r+=2.2; p.alpha*=0.92; p.life--;
-    if(p.life<=0 || p.alpha<0.05){ particles.splice(i,1); continue; }
-    ctx.globalAlpha=p.alpha; ctx.strokeStyle=colorMix(p.color,'#ffffff',0.15); ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=1;
+/* ===================== Effects ===================== */
+const trail = []; // {x,y,r,alpha}
+const rings = []; // {x,y,r,alpha,color}
+let camShake = 0, camAngle = 0;
+function addTrail(x,y,r){ trail.push({x,y,r,alpha:0.9}); if(trail.length>20) trail.shift(); }
+function addRing(x,y,color='#ffd86b'){ rings.push({x,y,r:10,alpha:0.85,color}); }
+function shake(intensity=6){ camShake = Math.max(camShake, intensity); camAngle = rng(-0.02,0.02); }
+function drawFX(){
+  // camera shake
+  if (camShake>0){
+    const ox = rng(-camShake, camShake)*0.4;
+    const oy = rng(-camShake, camShake)*0.4;
+    ctx.translate(ox, oy);
+    camShake *= 0.9;
+  }
+  // trails
+  for (let i=0;i<trail.length;i++){
+    const t=trail[i]; t.alpha*=0.92; t.r*=1.01;
+    if (t.alpha<0.05){ trail.splice(i,1); i--; continue; }
+    ctx.globalAlpha = t.alpha;
+    ctx.fillStyle = '#ffe6a6';
+    ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // rings
+  for (let i=rings.length-1;i>=0;i--){
+    const r=rings[i]; r.alpha*=0.92; r.r+=3;
+    if (r.alpha<0.06){ rings.splice(i,1); continue; }
+    ctx.globalAlpha = r.alpha;
+    ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 }
-function colorMix(a,b,t){ // simple lerp, expect hex
-  function h2i(h){ return parseInt(h,16); }
-  const A=[h2i(a.slice(1,3)),h2i(a.slice(3,5)),h2i(a.slice(5,7))];
-  const B=[h2i(b.slice(1,3)),h2i(b.slice(3,5)),h2i(b.slice(5,7))];
-  const C=A.map((v,i)=>Math.round(v*(1-t)+B[i]*t));
-  return '#'+C.map(v=>v.toString(16).padStart(2,'0')).join('');
-}
 
-/* ========= Entities ========= */
-class Player{
+/* ===================== Entities ===================== */
+class Player {
   constructor(x,color,side){
-    this.x=x; this.y=floorY-34; this.r=32;
-    this.vx=0; this.vy=0; this.onGround=true;
+    this.x=x; this.y=FLOOR_Y-42; this.r=38;
+    this.vx=0; this.vy=0; this.onGround=true; this.lastGroundTime=now();
     this.color=color; this.side=side; // 'L' or 'R'
   }
-  update(inp, lb, rb){
-    // Horizontal
-    let dir=(inp.left?-1:0)+(inp.right?1:0);
-    this.vx=dir*moveSpeed; this.x+=this.vx;
-    this.x=clamp(this.x, lb+this.r, rb-this.r);
-    // Gravity + vertical
-    this.vy+=gravity; this.y+=this.vy;
-    if(this.y>=floorY-this.r){ this.y=floorY-this.r; this.vy=0; this.onGround=true; } else this.onGround=false;
+  update(ax, lb, rb){
+    // Smooth horizontal
+    this.vx += ax * ACCEL;
+    this.vx = clamp(this.vx, -MAX_SPEED, MAX_SPEED);
+    if (Math.abs(ax) < 0.01) this.vx *= FRICTION;
+    this.x += this.vx;
+    this.x = clamp(this.x, lb+this.r, rb-this.r);
+    // Gravity
+    this.vy += GRAV; this.y += this.vy;
+    if (this.y >= FLOOR_Y - this.r){
+      this.y = FLOOR_Y - this.r; this.vy=0; if(!this.onGround){ this.onGround=true; }
+      this.lastGroundTime = now();
+    } else { this.onGround=false; }
   }
-  maybeJump(inp){ if(inp.jump && this.onGround){ this.vy=jumpVel; this.onGround=false; } }
+  canJump(jPressedAt){
+    // coyote + buffer handled outside; here just flag
+    const t = now();
+    return (t - this.lastGroundTime) <= COYOTE;
+  }
   draw(){
-    ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    // Direction arrow
-    ctx.strokeStyle="#a9b4d6"; ctx.lineWidth=2; ctx.beginPath();
-    const ax=this.x + (Math.sign(this.vx)||1)*this.r*0.9;
-    ctx.moveTo(this.x, this.y-this.r-10); ctx.lineTo(ax, this.y-this.r-10); ctx.stroke();
+    // body with gradient & rim light
+    const g = ctx.createRadialGradient(this.x-8,this.y-12,10, this.x,this.y,this.r+6);
+    g.addColorStop(0, this.color);
+    g.addColorStop(1, '#10131a');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+    // rim
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.stroke();
+    // shadow
+    ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(this.x, FLOOR_Y+6, this.r*0.9, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   }
 }
 
-class Ball{
-  constructor(){ this.r=16; this.reset('P'); }
+class Ball {
+  constructor(){ this.r=18; this.reset('P'); this.lastSide=null; }
   reset(server){
-    // server 'P' (player) or 'A' (ai)
-    if(server==='P'){
-      this.x=courtMargin+28; this.y=floorY-220; // above backline
-      this.vx=6; this.vy=-4;
-    }else{
-      this.x=W*0.75; this.y=floorY-220; // AI middle of its court
-      this.vx=-6; this.vy=-4;
+    if (server==='P'){
+      this.x = CM + 36; this.y = FLOOR_Y - 260; this.vx = 7; this.vy = -6;
+    } else {
+      this.x = W*0.75; this.y = FLOOR_Y - 260; this.vx = -7; this.vy = -6;
     }
-    this.lastTouch=null; this.touches={P:0,A:0}; this.inPlay=true; this.lastSide=null; this.carry=false;
+    this.lastTouch=null; this.touches={P:0,A:0}; this.inPlay=true; this.carry=false; this.lastSide=null;
   }
   update(){
-    this.vy+=gravity; this.x+=this.vx; this.y+=this.vy;
-    // Walls (allow over-net returns off walls)
-    if(this.x-this.r<courtMargin){ this.x=courtMargin+this.r; this.vx=Math.abs(this.vx)*wallBounce; }
-    if(this.x+this.r>W-courtMargin){ this.x=W-courtMargin-this.r; this.vx=-Math.abs(this.vx)*wallBounce; }
-    // Ceiling
-    if(this.y-this.r<40){ this.y=40+this.r; this.vy=Math.abs(this.vy)*groundBounce; }
-    // Floor
-    if(this.y+this.r>=floorY){
-      this.y=floorY-this.r; this.vy=-Math.abs(this.vy)*groundBounce;
-      if(Math.abs(this.vy)<2.2){ this.inPlay=false; }
+    this.vy += GRAV; this.x += this.vx; this.y += this.vy;
+    // walls
+    if (this.x - this.r < CM){ this.x = CM + this.r; this.vx = Math.abs(this.vx)*WALL_BOUNCE; addTrail(this.x,this.y,this.r*0.6); }
+    if (this.x + this.r > W-CM){ this.x = W-CM - this.r; this.vx = -Math.abs(this.vx)*WALL_BOUNCE; addTrail(this.x,this.y,this.r*0.6); }
+    // ceiling
+    if (this.y - this.r < 50){ this.y = 50 + this.r; this.vy = Math.abs(this.vy)*GROUND_BOUNCE; }
+    // floor
+    if (this.y + this.r >= FLOOR_Y){
+      this.y = FLOOR_Y - this.r;
+      this.vy = -Math.abs(this.vy)*GROUND_BOUNCE;
+      if (Math.abs(this.vy) < 2.2){ this.inPlay = false; }
     }
-    // Net collision (circle vs AABB)
-    if(circleRectHit(this.x,this.y,this.r, net.x,net.y,net.w,net.h)){
-      if(this.x < net.x+net.w/2){ this.x=net.x-this.r-0.1; this.vx=-Math.abs(this.vx)*0.7; }
-      else { this.x=net.x+net.w+this.r+0.1; this.vx=Math.abs(this.vx)*0.7; }
-      this.vy*=0.8;
+    // net collision
+    if (this.x + this.r > NET.x && this.x - this.r < NET.x+NET.w && this.y + this.r > NET.y && this.y - this.r < NET.y+NET.h){
+      if (this.x < NET.x + NET.w/2){ this.x = NET.x - this.r - .1; this.vx = -Math.abs(this.vx)*0.72; }
+      else { this.x = NET.x + NET.w + this.r + .1; this.vx = Math.abs(this.vx)*0.72; }
+      this.vy *= 0.86;
+      addTrail(this.x,this.y,this.r*0.5);
     }
+    addTrail(this.x,this.y,this.r*0.22);
   }
   draw(){
-    ctx.fillStyle="#ffd86b"; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#e7b94b"; ctx.stroke();
+    // ball with highlight
+    const g = ctx.createRadialGradient(this.x-6,this.y-6,4, this.x,this.y,this.r+3);
+    g.addColorStop(0,'#fff2b8'); g.addColorStop(1,'#f2c55a');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#e0b24b'; ctx.lineWidth=2; ctx.stroke();
   }
 }
 
-/* ========= Game State ========= */
-const player=new Player(W*0.25,"#6bc3ff",'L');
-const ai    =new Player(W*0.75,"#ff7895",'R');
-const ball  =new Ball();
+/* ===================== World & Drawing ===================== */
+function drawCourt(){
+  // Background court gradient
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#1b2436'); g.addColorStop(1,'#121721');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // Floor plank shading
+  ctx.fillStyle = '#0e1420';
+  ctx.fillRect(CM, FLOOR_Y+2, W-CM*2, 8);
+  ctx.globalAlpha = 0.08;
+  for(let x=CM;x<=W-CM;x+=40){ ctx.fillRect(x,FLOOR_Y+10, 20, 8); }
+  ctx.globalAlpha = 1;
+
+  // Center line tick
+  ctx.globalAlpha=.18; ctx.fillStyle="#89a3ff";
+  ctx.fillRect(W/2-1, FLOOR_Y-8, 2, 10);
+  ctx.globalAlpha=1;
+
+  // Net posts
+  ctx.fillStyle='#a6b3d6';
+  ctx.fillRect(NET.x-6, NET.y-10, 6, NET.h+14);
+  ctx.fillRect(NET.x+NET.w, NET.y-10, 6, NET.h+14);
+
+  // Net mesh + tape
+  ctx.fillStyle='#c3cbe3'; // tape
+  ctx.fillRect(NET.x-1, NET.y-8, NET.w+2, 8);
+  ctx.fillStyle='rgba(190,200,230,0.5)';
+  for(let y=NET.y; y<NET.y+NET.h; y+=14){ ctx.fillRect(NET.x, y, NET.w, 2); }
+}
+
+/* ===================== Input (keyboard & touch, with buffering) ===================== */
+const keys = {L:false,R:false,J:false,H:false};
+let lastJumpPress = -999, lastHitPress = -999;
+
+addEventListener('keydown', e=>{
+  if (['a','A','ArrowLeft'].includes(e.key)) keys.L=true;
+  if (['d','D','ArrowRight'].includes(e.key)) keys.R=true;
+  if (['w','W','ArrowUp'].includes(e.key)) { keys.J=true; lastJumpPress = now(); }
+  if (e.code==='Space'){ keys.H=true; lastHitPress = now(); }
+});
+addEventListener('keyup', e=>{
+  if (['a','A','ArrowLeft'].includes(e.key)) keys.L=false;
+  if (['d','D','ArrowRight'].includes(e.key)) keys.R=false;
+  if (['w','W','ArrowUp'].includes(e.key)) keys.J=false;
+  if (e.code==='Space') keys.H=false;
+});
+function bindHold(id, prop){
+  const el = document.getElementById(id);
+  const set = v => { el.style.filter = v?'brightness(1.12)':'none'; if(prop==='J'&&v) lastJumpPress=now(); if(prop==='H'&&v) lastHitPress=now(); touch[prop]=v; };
+  ['pointerdown','touchstart','mousedown'].forEach(ev => el.addEventListener(ev, e=>{e.preventDefault(); set(true);} ));
+  ['pointerup','pointercancel','touchend','mouseup','mouseleave'].forEach(ev => el.addEventListener(ev, e=>{e.preventDefault(); set(false);} ));
+}
+const touch = {L:false,R:false,J:false,H:false};
+bindHold('bLeft','L'); bindHold('bRight','R'); bindHold('bJump','J'); bindHold('bHit','H');
+const input = () => ({
+  ax: (keys.L||touch.L ? -1 : 0) + (keys.R||touch.R ? 1 : 0),
+  jump: (keys.J||touch.J),
+  hit: (keys.H||touch.H),
+});
+
+/* ===================== Game State ===================== */
+const player = new Player(W*0.25, '#6bc3ff', 'L');
+const ai     = new Player(W*0.75, '#ff7895', 'R');
+const ball   = new Ball();
 
 let scores={P:0,A:0}, server='P', state='menu';
-const scoreEl=document.getElementById('score');
-function updateScore(){ scoreEl.textContent=`${scores.P} : ${scores.A}`; }
-function resetPositionsMiddle(){
-  player.x=W*0.25; player.y=floorY-player.r; player.vx=player.vy=0;
-  ai.x=W*0.75; ai.y=floorY-ai.r; ai.vx=ai.vy=0;
+const scoreEl = document.getElementById('score');
+function setScore(){ scoreEl.textContent = `${scores.P} : ${scores.A}`; }
+
+function resetMiddle(){
+  player.x=W*0.25; player.y=FLOOR_Y-player.r; player.vx=player.vy=0; player.onGround=true; player.lastGroundTime=now();
+  ai.x=W*0.75; ai.y=FLOOR_Y-ai.r; ai.vx=ai.vy=0; ai.onGround=true; ai.lastGroundTime=now();
 }
 function newRally(nextServer){
-  server=nextServer||server;
-  resetPositionsMiddle();
-  // Spawn server positioning nuance: if player serves, put them on back line; AI remains mid.
-  if(server==='P'){ player.x=courtMargin+player.r+2; }
+  server = nextServer || server;
+  resetMiddle();
+  if (server==='P'){ player.x = CM + player.r + 6; }
   ball.reset(server);
   state='serve';
 }
-function awardPoint(w){
-  if(w==='P') scores.P++; else scores.A++;
-  updateScore();
-  server=w; // momentum serve
-  // Win condition
-  if(scores.P>=scoreTo || scores.A>=scoreTo){
-    state='menu'; document.getElementById('menuOverlay').style.display='flex';
-  }else{
-    newRally(server);
-  }
+function awardPoint(who){
+  if (who==='P') scores.P++; else scores.A++;
+  setScore();
+  server = who; // winner serves next
+  navigator.vibrate?.(30);
+  shake(8);
+  state='between';
+  setTimeout(()=> newRally(server), 650); // prevent bounce-driven multi-points
 }
 
-/* ========= AI (anticipation + bump only with variety) ========= */
-function aiThink(){
-  // Predict where ball will be when it reaches floor height (simple ballistic)
-  const g=gravity, vy=ball.vy, y=ball.y;
-  const t = (vy>=0)
-    ? ((Math.sqrt(vy*vy+2*g*(floorY-(y+ball.r))) - vy) / g)
-    : ((-vy + Math.sqrt(vy*vy+2*g*(floorY-(y+ball.r)))) / g);
-  let tx = ball.x + ball.vx * Math.max(0.12, t*0.95); // slightly earlier anticipation
-  // Clamp to AI court
-  tx = clamp(tx, W/2+courtMargin+ai.r, W-courtMargin-ai.r);
+/* ===================== Player Interaction (Set vs Spike, timing windows) ===================== */
+function playerInteract(wantHit){
+  const dx = ball.x - player.x, dy = ball.y - player.y;
+  const dist = Math.hypot(dx,dy);
+  const reach = player.r + ball.r + 22; // generous but skillful
+  if (dist > reach) return false;
 
-  // Variety buckets when ball is on AI side and close
-  if(ball.x>W/2 && Math.abs(ball.x-ai.x)<300){
-    const r=Math.random();
-    if(r<0.33) tx=W*0.86; else if(r<0.66) tx=W*0.74; else tx=W*0.62;
-  }
-
-  // Move horizontally
-  if(Math.abs(ai.x - tx) > 6) ai.x += Math.sign(tx-ai.x)*aiSpeed;
-  ai.x = clamp(ai.x, W/2+courtMargin+ai.r, W-courtMargin-ai.r);
-
-  // Attempt a bump if overlapping
-  const dx=Math.abs(ball.x-ai.x), dy=ball.y-ai.y, reach=ai.r+ball.r+14;
-  if(dx<reach && dy<reach){
-    const opts=[ {vx:-7, vy:-16}, {vx:-9, vy:-18}, {vx:-12, vy:-20} ];
-    const b=opts[(Math.random()*opts.length)|0];
-    ball.vx=b.vx + (Math.random()*2-1);
-    ball.vy=b.vy;
-    ball.lastTouch='A'; ball.touches.A=(ball.touches.A||0)+1; ball.carry=false;
-    addRing(ball.x, ball.y, '#ff8aa5');
-  }
-}
-
-/* ========= Player Interactions (timing windows) ========= */
-function playerTryInteract(inp){
-  // Expanded interaction radius; perfect when touching the ring boundary
-  const dx=ball.x-player.x, dy=ball.y-player.y;
-  const dist=Math.hypot(dx,dy);
-  const hitR = player.r + ball.r + 18; // expanded
-  if(dist>hitR) return false;
-
-  // Timing grading: perfect if distance ~ (player.r + ball.r)
   const ideal = player.r + ball.r;
-  const err = Math.abs(dist - ideal); // smaller is better
-  const perfect = err < 4; // tight window ~ “just contacting”
-  const good = err < 10;
+  const err = Math.abs(dist - ideal);
+  const perfect = err < 4, good = err < 10;
 
-  if(inp.hit){
-    if(player.onGround){
-      // SET: aim to perfect spike point on YOUR side (fixed sweet spot)
-      const sweet = (player.side==='L') ? (W*0.35) : (W*0.65);
-      // Compute directional sign to sweet spot
-      const s = Math.sign(sweet - player.x) || (player.side==='L'?1:-1);
-      // Stronger pop if perfect timing
-      ball.vx = (perfect?7.5: good?6.5:6.0) * s;
-      ball.vy = perfect? -19.5 : good? -18.2 : -17.2;
-      ball.lastTouch='P'; ball.touches.P=Math.max(1, ball.touches.P||0); ball.carry=false;
-      addRing(ball.x, ball.y, '#8bd1ff');
-      return true;
-    }else{
-      // SPIKE: mostly downward shot across net, speed scales with timing
-      const s = (player.side==='L')?1:-1;
-      const base = perfect? 14.5 : good? 13.0 : 12.0;
-      ball.vx = base*s + dx*0.08;
-      ball.vy = perfect? 26 : good? 24 : 22; // punch down
+  // Auto trigger if buffered
+  const t = now();
+  const bufferedHit = (t - lastHitPress) <= HIT_BUFFER;
+
+  if (wantHit || bufferedHit){
+    if (player.canJump(lastJumpPress) === false && !player.onGround){
+      // Air = SPIKE (downward)
+      const s = (player.side==='L') ? 1 : -1;
+      const speed = perfect? 16.5 : good? 15.0 : 13.5;
+      ball.vx = speed * s + dx * 0.10;
+      ball.vy = perfect? 30 : good? 27 : 24;  // drive down
       ball.y += 2;
       ball.lastTouch='P'; ball.touches.P=(ball.touches.P||0)+1; ball.carry=false;
-      addRing(ball.x, ball.y, '#8bd1ff');
+      addRing(ball.x, ball.y, '#8bd1ff'); shake(5);
+      lastHitPress = -999;
+      return true;
+    } else {
+      // Ground = SET to sweet spot (perfect spiking point on our side)
+      const sweet = (player.side==='L') ? W*0.35 : W*0.65;
+      const s = Math.sign(sweet - player.x) || (player.side==='L'?1:-1);
+      ball.vx = (perfect? 9.5 : good? 8.2 : 7.0) * s;
+      ball.vy = perfect? -24 : good? -22 : -20;
+      ball.lastTouch='P'; ball.touches.P=Math.max(1, ball.touches.P||0); ball.carry=false;
+      addRing(ball.x, ball.y, '#8bd1ff'); shake(3);
+      lastHitPress = -999;
       return true;
     }
-  }else{
-    // Passive contact: pop up a bit; can cross net if physics allows (per last spec)
-    if(ball.vy>-4) ball.vy = -10;
-    ball.vx += dx*0.02;
+  } else {
+    // Passive contact — soft pop; any ball can go over net if physics allows
+    if (ball.vy > -5) ball.vy = -12;
+    ball.vx += dx * 0.018;
     ball.lastTouch='P'; ball.touches.P=(ball.touches.P||0)+1; ball.carry=true;
     return true;
   }
 }
 
-/* ========= Court & UI ========= */
-function drawCourt(){
-  // Ground
-  ctx.fillStyle="#1b2030"; ctx.fillRect(courtMargin,floorY, W-courtMargin*2, 6);
-  // Net
-  ctx.fillStyle="#a9b4d6"; ctx.fillRect(net.x, net.y, net.w, net.h);
-  // Center line
-  ctx.globalAlpha=.15; ctx.fillStyle="#89a3ff"; ctx.fillRect(W/2-1, floorY-6, 2, 6); ctx.globalAlpha=1;
+/* ===================== AI Logic (anticipation + bumps only) ===================== */
+function aiThink(){
+  // Predict landing on floor (simple ballistic)
+  const g = GRAV, vy = ball.vy, y = ball.y;
+  const tFall = (vy>=0) ? ((Math.sqrt(vy*vy + 2*g*(FLOOR_Y - (y+ball.r))) - vy)/g)
+                        : ((-vy + Math.sqrt(vy*vy + 2*g*(FLOOR_Y - (y+ball.r))))/g);
+  let targetX = ball.x + ball.vx * Math.max(0.1, tFall * AI_ANTICIPATION);
+
+  // Clamp to AI court
+  targetX = clamp(targetX, W/2 + CM + ai.r, W - CM - ai.r);
+
+  // Depth variety if ball is on AI side & near
+  if (ball.x > W/2 && Math.abs(ball.x - ai.x) < 320){
+    targetX = choose([ W*0.62, W*0.74, W*0.86 ]);
+  }
+
+  // Move towards target
+  if (Math.abs(ai.x - targetX) > 6){
+    ai.x += Math.sign(targetX - ai.x) * AI_SPEED;
+  }
+  ai.x = clamp(ai.x, W/2 + CM + ai.r, W - CM - ai.r);
+
+  // Attempt bump if overlapping
+  const dx = Math.abs(ball.x - ai.x), dy = ball.y - ai.y, reach = ai.r + ball.r + 18;
+  if (dx < reach && dy < reach){
+    const b = choose([
+      {vx:-8.0, vy:-20.0}, // short
+      {vx:-10.0,vy:-22.0}, // mid
+      {vx:-12.5,vy:-24.0}, // far
+    ]);
+    ball.vx = b.vx + rng(-1.0,1.0);
+    ball.vy = b.vy;
+    ball.lastTouch='A'; ball.touches.A=(ball.touches.A||0)+1; ball.carry=false;
+    addRing(ball.x, ball.y, '#ff9ab2'); shake(3);
+  }
 }
 
-/* ========= State Management ========= */
-function tick(){
-  requestAnimationFrame(tick);
-  ctx.clearRect(0,0,W,H);
-  drawCourt();
+/* ===================== Fixed-Step Loop ===================== */
+let lastT = performance.now()/1000, acc=0, DT=1/60;
 
-  if(state==='menu'){ player.draw(); ai.draw(); ball.draw(); drawParticles(); return; }
-
-  const inp=combined();
-  player.maybeJump(inp);
-
-  // Update players (split courts)
-  player.update(inp, courtMargin, W/2-courtMargin);
-  ai.update({left:false,right:false,jump:false,hit:false}, W/2+courtMargin, W-courtMargin);
+function step(dt){
+  // Input & jumps (with coyote)
+  const inp = input();
+  const ax = clamp(inp.ax, -1, 1);
+  if ((now() - lastJumpPress) <= HIT_BUFFER && player.canJump(lastJumpPress)){
+    // buffered jump
+    if (!player.onGround){ /* keep buffer until grounded */ }
+    else { player.vy = JUMP_VEL; player.onGround=false; lastJumpPress = -999; navigator.vibrate?.(10); }
+  }
+  player.update(ax, CM, W/2 - CM);
+  ai.update(0, W/2 + CM, W - CM);
 
   // Interactions
-  playerTryInteract(inp);
+  playerInteract(inp.hit);
+
+  // AI
   aiThink();
 
   // Ball physics
-  const prevX=ball.x;
+  const wasInPlay = ball.inPlay, prevSide = ball.lastSide;
   ball.update();
 
-  // Touch-limit faults (3 max)
-  if(ball.lastTouch==='P' && ball.touches.P>maxTouches){ ball.inPlay=false; awardPoint('A'); }
-  if(ball.lastTouch==='A' && ball.touches.A>maxTouches){ ball.inPlay=false; awardPoint('P'); }
+  // Touch-limit faults
+  if (ball.lastTouch==='P' && (ball.touches.P||0) > MAX_TOUCHES){ ball.inPlay=false; awardPoint('A'); return; }
+  if (ball.lastTouch==='A' && (ball.touches.A||0) > MAX_TOUCHES){ ball.inPlay=false; awardPoint('P'); return; }
 
-  // Reset touch counters on crossing halves (like the Python build)
-  if(ball.x<W/2 && ball.lastSide!=='L'){ ball.touches.A=0; ball.lastSide='L'; }
-  if(ball.x>W/2 && ball.lastSide!=='R'){ ball.touches.P=0; ball.lastSide='R'; }
+  // Reset touch counters on crossing halves
+  if (ball.x < W/2 && ball.lastSide !== 'L'){ ball.touches.A = 0; ball.lastSide = 'L'; }
+  if (ball.x > W/2 && ball.lastSide !== 'R'){ ball.touches.P = 0; ball.lastSide = 'R'; }
 
-  // Floor-out awards
-  if(!ball.inPlay && ball.y+ball.r>=floorY-1){
-    const left=ball.x<W/2; awardPoint(left?'A':'P');
+  // Floor-out awards (single decision per point)
+  if (!ball.inPlay && wasInPlay){
+    const left = ball.x < W/2;
+    awardPoint(left ? 'A' : 'P');
+    return;
+  }
+}
+
+function render(){
+  ctx.save();
+  drawCourt();
+
+  // Score
+  // (drawn by DOM already; in-canvas extras can be added here if desired)
+
+  // Actors
+  player.draw(); ai.draw(); ball.draw();
+
+  // Effects
+  drawFX();
+  ctx.restore();
+}
+
+function loop(){
+  const t = performance.now()/1000;
+  let frame = t - lastT; if (frame > 0.25) frame = 0.25; // clamp
+  lastT = t; acc += frame;
+
+  while (acc >= DT){
+    if (state === 'serve' || state === 'play' || state === 'between'){
+      step(DT);
+      state = (state==='serve') ? 'play' : state; // transition to play after first step
+    }
+    acc -= DT;
   }
 
-  // Draw actors + fx
-  player.draw(); ai.draw(); ball.draw(); drawParticles();
+  render();
+  requestAnimationFrame(loop);
 }
-tick();
+loop();
 
-/* ========= Menu / Buttons ========= */
-document.getElementById('start1v1').onclick=()=>{
-  document.getElementById('menuOverlay').style.display='none';
-  scores={P:0,A:0}; updateScore(); server='P'; newRally('P');
+/* ===================== Menu & Buttons ===================== */
+document.getElementById('start').onclick = ()=>{
+  document.getElementById('menu').style.display='none';
+  scores={P:0,A:0}; setScore(); server='P'; newRally('P');
 };
-document.getElementById('restartBtn').onclick=()=>{
-  scores={P:0,A:0}; updateScore(); server='P'; newRally('P');
+document.getElementById('restart').onclick = ()=>{
+  scores={P:0,A:0}; setScore(); server='P'; newRally('P');
 };
 
-})(); // IIFE
+// Make canvas big on load
+setTimeout(fitCanvas, 0);
+})();
 </script>
 </body>
 </html>
