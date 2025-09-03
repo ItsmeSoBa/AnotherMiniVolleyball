@@ -21,7 +21,17 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android SDK cmdline-tools
+      # 👇 Pin Gradle 8.x (Cordova-Android 12 expects Gradle 8, not 9)
+      - name: Install Gradle 8.7
+        run: |
+          set -eux
+          curl -L -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip -d "$HOME"
+          rm gradle.zip
+          echo "$HOME/gradle-8.7/bin" >> $GITHUB_PATH
+          gradle -v
+
+      - name: Install Android SDK cmdline-tools (local SDK)
         run: |
           set -eux
           SDK="$GITHUB_WORKSPACE/android-sdk"
@@ -32,10 +42,15 @@ jobs:
           rm -f tools.zip
           mv cmdline-tools latest
           export PATH="$SDK/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --sdk_root="$SDK" "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmdline-tools;latest"
+          sdkmanager --version
+          yes | sdkmanager --sdk_root="$SDK" \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmdline-tools;latest"
           yes | sdkmanager --sdk_root="$SDK" --licenses || true
+
+          # Make sure Cordova uses THIS SDK (not the runner's default)
           echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
-          echo "$SDK/platform-tools" >> $GITHUB_PATH
+          echo "ANDROID_HOME=$SDK"     >> $GITHUB_ENV
+          echo "$SDK/platform-tools"   >> $GITHUB_PATH
           echo "$SDK/build-tools/33.0.2" >> $GITHUB_PATH
 
       - name: Install Cordova
@@ -44,9 +59,11 @@ jobs:
       - name: Build Cordova Android APK
         run: |
           set -eux
-          # Create Cordova project
+
+          # Create a fresh Cordova app
           cordova create app com.yourname.volleytouch VolleyTouch
-          # Copy your web assets into app/www
+
+          # Bring in your web assets
           if [ -d "www" ]; then
             rm -rf app/www
             cp -r www app/www
@@ -58,10 +75,18 @@ jobs:
             echo "::error::No web assets found. Put your game in 'www/' (recommended) or at least an 'index.html' at repo root."
             exit 1
           fi
-          # Add Android and build debug APK
+
           cd app
+
+          # Add Android platform (12.x pairs with Gradle 8)
           cordova platform add android@12
-          cordova build android --debug
+
+          # Build debug APK using our pinned Gradle 8.7 and local SDK
+          echo "Using ANDROID_HOME=$ANDROID_HOME"
+          which gradle
+          gradle -v
+          cordova build android --debug --no-telemetry
+
           ls -la platforms/android/app/build/outputs/apk/debug/
 
       - name: Upload APK
