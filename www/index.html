@@ -1,0 +1,244 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VolleyTouch</title>
+  <style>
+    :root{ --bg:#0e0f13; --fg:#e8eef8; --card:#171b26; --muted:#9aa6c0; --accent:#7ab9ff; }
+    html, body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans'; }
+    #wrap { display:flex; flex-direction:column; height:100%; }
+    #topbar { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; gap:12px; }
+    #score { font-weight:800; letter-spacing:.5px; }
+    #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center; padding:8px 12px; }
+    canvas { background: radial-gradient(1200px 600px at 50% -200px, #242c3b, #12151e 70%); border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,.35); max-width:100%; height:auto; touch-action:none; }
+    #controls { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; padding:10px; }
+    .btn { user-select:none; -webkit-user-select:none; background:#1b2130; border:1px solid #2a3244; border-radius:14px; padding:12px; text-align:center; font-weight:800; }
+    .btn:active { transform:translateY(1px); filter:brightness(1.05); }
+    #menuOverlay { position:fixed; inset:0; background:rgba(10,12,18,0.92); display:flex; align-items:center; justify-content:center; }
+    .panel { background:var(--card); border:1px solid #2a3142; border-radius:18px; padding:22px; width:min(520px, 92vw); box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+    .title { font-size:26px; font-weight:900; margin:0 0 6px 0; }
+    .subtitle { margin:0 0 16px 0; color:var(--muted); }
+    .menu-btn { display:block; width:100%; margin:10px 0; padding:12px 14px; background:#24314a; border:1px solid #364565; color:#d6e6ff; border-radius:12px; font-weight:800; text-align:center; }
+    .menu-btn:hover { filter:brightness(1.06); }
+    .pill { padding:3px 8px; border-radius:999px; background:#0e7bff22; color:#9fc5ff; font-size:12px; border:1px solid #0e7bff44; }
+    .legend { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <div class="legend">
+        <span class="pill">Move: A/D or ◀/▶</span>
+        <span class="pill">Jump: W or ▲</span>
+        <span class="pill">Hit: SPACE (ground=set, air=spike)</span>
+      </div>
+      <div id="score">0 : 0</div>
+    </div>
+    <div id="canvasWrap">
+      <canvas id="game" width="1280" height="720"></canvas>
+    </div>
+    <div id="controls">
+      <div class="btn" id="btnLeft">◀</div>
+      <div class="btn" id="btnRight">▶</div>
+      <div class="btn" id="btnJump">Jump</div>
+      <div class="btn" id="btnHit">Hit</div>
+    </div>
+  </div>
+
+  <div id="menuOverlay">
+    <div class="panel">
+      <div class="title">VolleyTouch</div>
+      <p class="subtitle">1v1 volleyball. Simple moves. Satisfying spikes.</p>
+      <button class="menu-btn" id="start1v1">Start 1v1</button>
+      <button class="menu-btn" id="restartBtn">Quick Restart</button>
+      <div style="margin-top:12px; font-size:12px; opacity:.85;">Tip: Wrap this HTML with Cordova/Capacitor to export an APK.</div>
+    </div>
+  </div>
+
+  <script>
+  (()=>{
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // Responsive sizing
+    const baseW=1280, baseH=720;
+    function fitCanvas(){
+      const pad=12;
+      const maxW=document.getElementById('canvasWrap').clientWidth - pad*2;
+      const maxH=window.innerHeight - 220;
+      const target=baseW/baseH;
+      let w=maxW, h=w/target;
+      if(h>maxH){ h=maxH; w=h*target; }
+      canvas.style.width=w+'px';
+      canvas.style.height=h+'px';
+    }
+    window.addEventListener('resize', fitCanvas); fitCanvas();
+
+    // Constants
+    const W=canvas.width, H=canvas.height;
+    const floorY=H-60;
+    const net={ w:12, h:170 }; // visually lower
+    net.x = W/2 - net.w/2; net.y = floorY - net.h;
+    const courtMargin=30;
+    const gravity=0.68;
+    const wallBounce=0.85, groundBounce=0.78;
+    const aiSpeed=6.4, moveSpeed=8.0, jumpVel=-16.8;
+
+    const keys={left:false,right:false,jump:false,hit:false};
+    const touch={left:false,right:false,jump:false,hit:false};
+
+    class Player{
+      constructor(x,color,side){ this.x=x; this.y=floorY-34; this.r=32; this.vx=0; this.vy=0; this.color=color; this.side=side; this.onGround=true; }
+      update(input, lb, rb){
+        let dir=(input.left?-1:0)+(input.right?1:0);
+        this.vx=dir*moveSpeed; this.x+=this.vx;
+        this.x=Math.max(lb+this.r, Math.min(rb-this.r, this.x));
+        this.vy+=gravity; this.y+=this.vy;
+        if(this.y>=floorY-this.r){ this.y=floorY-this.r; this.vy=0; this.onGround=true; } else this.onGround=false;
+      }
+      tryHit(ball,want){
+        const dx=ball.x-this.x, dy=ball.y-this.y, dist=Math.hypot(dx,dy), hitR=this.r+ball.r+18;
+        if(dist<=hitR){
+          if(want){
+            if(this.onGround){
+              // Set: gentle pop toward spike point
+              const targetX = this.side==='L' ? (W*0.35) : (W*0.65);
+              const s = Math.sign(targetX - this.x) || (this.side==='L'?1:-1);
+              ball.vx = 6*s; ball.vy = -18;
+              ball.lastTouch = (this.side==='L')?'P':'A'; ball.touches[ball.lastTouch]=Math.max(1,ball.touches[ball.lastTouch]);
+              ball.carry=false; return true;
+            }else{
+              // Spike: drive down
+              const s = (this.side==='L')?1:-1;
+              ball.vx = 12*s + dx*0.08; ball.vy = 24; ball.y+=2;
+              ball.lastTouch=(this.side==='L')?'P':'A'; ball.touches[ball.lastTouch]=(ball.touches[ball.lastTouch]||0)+1;
+              ball.carry=false; return true;
+            }
+          }else{
+            // Passive bounce
+            if(ball.vy>-4) ball.vy=-10;
+            ball.vx += dx*0.02;
+            ball.lastTouch=(this.side==='L')?'P':'A'; ball.touches[ball.lastTouch]=(ball.touches[ball.lastTouch]||0)+1;
+            ball.carry=true; return true;
+          }
+        }
+        return false;
+      }
+      draw(){
+        ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle="#a9b4d6"; ctx.lineWidth=2; ctx.beginPath();
+        const ax=this.x+Math.sign(this.vx||1)*this.r*0.9; ctx.moveTo(this.x, this.y-this.r-10); ctx.lineTo(ax, this.y-this.r-10); ctx.stroke();
+      }
+    }
+
+    class Ball{
+      constructor(){ this.r=16; this.reset('P'); }
+      reset(server){
+        this.x = (server==='P') ? courtMargin+28 : W/2;
+        this.y = floorY-220; this.vx = (server==='P')? 6 : -6; this.vy=-4;
+        this.lastTouch=null; this.carry=false; this.touches={P:0,A:0}; this.inPlay=true; this.lastSide=null;
+      }
+      update(){
+        this.vy+=gravity; this.x+=this.vx; this.y+=this.vy;
+        // walls
+        if(this.x-this.r<courtMargin){ this.x=courtMargin+this.r; this.vx=Math.abs(this.vx)*wallBounce; }
+        if(this.x+this.r>W-courtMargin){ this.x=W-courtMargin-this.r; this.vx=-Math.abs(this.vx)*wallBounce; }
+        // ceiling
+        if(this.y-this.r<40){ this.y=40+this.r; this.vy=Math.abs(this.vy)*groundBounce; }
+        // floor
+        if(this.y+this.r>=floorY){ this.y=floorY-this.r; this.vy=-Math.abs(this.vy)*groundBounce; if(Math.abs(this.vy)<2.2){ this.inPlay=false; } }
+        // net
+        if(this.x+this.r>net.x && this.x-this.r<net.x+net.w && this.y+this.r>net.y && this.y-this.r<net.h+net.y){
+          if(this.x<net.x+net.w/2){ this.x=net.x-this.r-0.1; this.vx=-Math.abs(this.vx)*0.7; } else { this.x=net.x+net.w+this.r+0.1; this.vx=Math.abs(this.vx)*0.7; }
+          this.vy*=0.8;
+        }
+      }
+      draw(){
+        ctx.fillStyle="#ffd86b"; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="#e7b94b"; ctx.stroke();
+      }
+    }
+
+    const player=new Player(W*0.25,"#6bc3ff",'L');
+    const ai=new Player(W*0.75,"#ff7895",'R');
+    const ball=new Ball();
+    let scores={P:0,A:0}, server='P', state='menu';
+
+    function resetPositions(){ player.x=W*0.25; player.y=floorY-player.r; player.vx=player.vy=0; ai.x=W*0.75; ai.y=floorY-ai.r; ai.vx=ai.vy=0; }
+    function newRally(s){ server=s||server; resetPositions(); ball.reset(server); state='serve'; }
+    function awardPoint(w){ if(w==='P') scores.P++; else scores.A++; server=w; updateScore(); if(scores.P>=25||scores.A>=25){ state='menu'; document.getElementById('menuOverlay').style.display='flex'; } else newRally(server); }
+    function updateScore(){ document.getElementById('score').textContent=`${scores.P} : ${scores.A}`; }
+
+    function aiThink(){
+      const g=gravity, vy=ball.vy, y=ball.y;
+      const t = (vy>=0)? ((Math.sqrt(vy*vy+2*g*(floorY-(y+ball.r)))-vy)/g) : ((-vy+Math.sqrt(vy*vy+2*g*(floorY-(y+ball.r))))/g);
+      let tx=ball.x + ball.vx*Math.max(0.1,t);
+      tx=Math.max(W/2+courtMargin+ai.r, Math.min(W-courtMargin-ai.r, tx));
+      if(ball.x>W/2 && Math.abs(ball.x-ai.x)<280){
+        const r=Math.random();
+        if(r<0.33) tx=W*0.86; else if(r<0.66) tx=W*0.74; else tx=W*0.62;
+      }
+      if(Math.abs(ai.x-tx)>6) ai.x += Math.sign(tx-ai.x)*aiSpeed;
+      ai.x=Math.max(W/2+courtMargin+ai.r, Math.min(W-courtMargin-ai.r, ai.x));
+      const dx=Math.abs(ball.x-ai.x), dy=ball.y-ai.y;
+      if(dx<ai.r+ball.r+12 && dy<ai.r+ball.r+12){
+        // AI bump only
+        const opts=[{vx:-7,vy:-16},{vx:-9,vy:-18},{vx:-12,vy:-20}];
+        const b=opts[Math.floor(Math.random()*opts.length)];
+        ball.vx=b.vx+(Math.random()*2-1); ball.vy=b.vy; ball.lastTouch='A'; ball.touches.A=(ball.touches.A||0)+1; ball.carry=false;
+      }
+    }
+
+    function drawCourt(){
+      ctx.fillStyle="#1b2030"; ctx.fillRect(courtMargin,floorY, W-courtMargin*2, 6);
+      ctx.fillStyle="#a9b4d6"; ctx.fillRect(net.x, net.y, net.w, net.h);
+      ctx.globalAlpha=.15; ctx.fillStyle="#89a3ff"; ctx.fillRect(W/2-1, floorY-6, 2, 6); ctx.globalAlpha=1;
+    }
+
+    // Input
+    addEventListener('keydown', e=>{ if(['a','A','ArrowLeft'].includes(e.key)) keys.left=true; if(['d','D','ArrowRight'].includes(e.key)) keys.right=true; if(['w','W','ArrowUp'].includes(e.key)) keys.jump=true; if(e.code==='Space') keys.hit=true; });
+    addEventListener('keyup', e=>{ if(['a','A','ArrowLeft'].includes(e.key)) keys.left=false; if(['d','D','ArrowRight'].includes(e.key)) keys.right=false; if(['w','W','ArrowUp'].includes(e.key)) keys.jump=false; if(e.code==='Space') keys.hit=false; });
+    function bindHold(id,prop){ const el=document.getElementById(id); const set=v=>{touch[prop]=v; el.style.filter=v?'brightness(1.12)':'none';}; ['pointerdown','touchstart','mousedown'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();set(true);})); ['pointerup','pointercancel','touchend','mouseup','mouseleave'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();set(false);})); }
+    bindHold('btnLeft','left'); bindHold('btnRight','right'); bindHold('btnJump','jump'); bindHold('btnHit','hit');
+    document.getElementById('start1v1').onclick=()=>{ document.getElementById('menuOverlay').style.display='none'; scores={P:0,A:0}; updateScore(); newRally('P'); };
+    document.getElementById('restartBtn').onclick=()=>{ scores={P:0,A:0}; updateScore(); newRally('P'); };
+
+    function combined(){ return { left:keys.left||touch.left, right:keys.right||touch.right, jump:keys.jump||touch.jump, hit:keys.hit||touch.hit }; }
+    function maybeJump(p,inp){ if(inp.jump && p.onGround){ p.vy=jumpVel; p.onGround=false; } }
+
+    function update(){
+      requestAnimationFrame(update);
+      ctx.clearRect(0,0,W,H);
+      drawCourt();
+      if(state==='menu'){ player.draw(); ai.draw(); ball.draw(); return; }
+
+      const inp=combined();
+      maybeJump(player, inp);
+      player.update(inp, courtMargin, W/2-courtMargin);
+      ai.update({left:false,right:false,jump:false,hit:false}, W/2+courtMargin, W-courtMargin);
+
+      player.tryHit(ball, inp.hit);
+      aiThink();
+      ball.update();
+
+      // touch limits
+      if(ball.lastTouch==='P' && ball.touches.P>3){ ball.inPlay=false; awardPoint('A'); }
+      if(ball.lastTouch==='A' && ball.touches.A>3){ ball.inPlay=false; awardPoint('P'); }
+
+      // crossing resets opposite touches
+      if(ball.x<W/2 && ball.lastSide!=='L'){ ball.touches.A=0; ball.lastSide='L'; }
+      if(ball.x>W/2 && ball.lastSide!=='R'){ ball.touches.P=0; ball.lastSide='R'; }
+
+      // floor-out -> point
+      if(!ball.inPlay && ball.y+ball.r>=floorY-1){
+        const left=ball.x<W/2; awardPoint(left?'A':'P');
+      }
+
+      player.draw(); ai.draw(); ball.draw();
+    }
+    update();
+  })();
+  </script>
+</body>
+</html>
